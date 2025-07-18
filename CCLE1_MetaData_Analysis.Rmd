@@ -1,0 +1,112 @@
+---
+title: "CCLE1_MetaData_Analysis"
+author: "Jannik Franken"
+date: "16 7 2025"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library}
+library(MetaProViz)
+library(magrittr)
+library(dplyr)
+library(rlang)
+library(ggfortify)
+library(tibble)
+library(readxl)
+library(readr)
+```
+
+
+```{r load data and metadata}
+## load CCLE data
+ccle <- read_xlsx("CCLE_Data/CCLE1_large/CCLE_Supplementary_Material_Table/41591_2019_404_MOESM2_ESM.xlsx", sheet = "1-clean data")
+
+## process a bit and make ready for use
+colnames(ccle)[1] <- "CCLE_ID"
+ccle[ccle == "NA"] <- NA
+ccle <- as.data.frame(ccle[order(ccle$CCLE_ID), ])
+rownames(ccle) = ccle$CCLE_ID
+
+
+
+## load cell line annotation data
+annot <- read_tsv("CCLE_Data/CCLE1_large/CCLE_DepMap/Cell_lines_annotations_20181226.txt",
+                  col_names = TRUE,
+                  )
+
+## process a bit
+annot <- as.data.frame(annot[order(annot$"CCLE_ID"), ])
+rownames(annot) <- annot$"CCLE_ID"
+
+```
+
+
+```{r}
+
+common_ids <- intersect(ccle[["CCLE_ID"]], annot[["CCLE_ID"]])
+
+ccle_ONLY_ids <- setdiff(ccle[["CCLE_ID"]], annot[["CCLE_ID"]])
+
+annot_ONLY_ids <- setdiff(annot[["CCLE_ID"]], ccle[["CCLE_ID"]])
+
+# common_ids
+ccle_ONLY_ids
+# annot_ONLY_ids
+
+```
+
+
+```{r merge intensities and annotation}
+
+data = merge(annot,
+             ccle
+             )
+
+data[data == "NS"] <- NA
+
+rownames(data) = data$CCLE_ID
+
+data
+
+## now the "data" dataframe contains column 1 the CCLE_ID. Columns 2-33 contain annotation data. cols 33 to 258 contain metabolite intensities
+```
+
+```{r}
+
+# metadata_sample_factors = as.data.frame(data[,c(4:6, 9:10, 13:20, 22:26)])  ## this was too much. Use less metadata columns first
+metadata_sample_factors = as.data.frame(data[,c(4:6, 9:10)])
+metadata_sample_factors <- as.data.frame(lapply(metadata_sample_factors, as.factor))
+# metadata_sample_factors[metadata_sample_factors=="NS"] <- "None"
+# metadata_sample_factors[is.na(metadata_sample_factors)] <- "None"
+rownames(metadata_sample_factors) <- rownames(data)
+
+expr_data <- data[ , -c(1:33)]
+
+MetaRes <- MetaProViz::metadata_analysis(data = expr_data, 
+                                         metadata_sample = metadata_sample_factors,  
+                                         scaling = TRUE, 
+                                         percentage = 0.1, 
+                                         cutoff_stat= 0.05, 
+                                         cutoff_variance = 1, 
+                                         save_plot = NULL, 
+                                         print_plot = FALSE 
+                                         )
+
+
+
+MetaRes
+
+```
+
+
+
+
+
+
+
+
+
+
